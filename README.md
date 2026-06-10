@@ -1,120 +1,92 @@
-# OpenAPIClient-php
+# SDK de PHP para eCF-Pronesoft
 
 ## Descripción general
-API de nivel productivo para emitir Comprobantes Fiscales Electrónicos (e-CF) en la
-República Dominicana a través de la plataforma Pronesoft.
+API de nivel productivo para emitir Comprobantes Fiscales Electrónicos (e-CF) en la República Dominicana a través de la plataforma Pronesoft.
 
-## Autenticación — OAuth 2.0 Client Credentials
+Este SDK encapsula por completo el flujo de autenticación, renovación y reintento de tokens de seguridad mediante el wrapper principal `EcfClient`.
 
-### Pasos
-1. Obtén tus credenciales desde el portal:
-   - Sandbox: https://ecf.sandbox.pronesoft.com → Apps → Default Sandbox App
-   - Producción: https://ecf.pronesoft.com → Integraciones → Apps → Crear App
-2. Solicita un token via POST /oauth/token — válido por 24 horas (86400s).
-3. Usa: Authorization: Bearer <accessToken> en cada request.
-4. Renueva al recibir HTTP 401. Buena práctica: renovar 5 minutos antes del vencimiento.
+---
 
-### Delegación multi-empresa
-Para actuar en nombre de una empresa asociada (sucursal), agrega:
-  x-tenant-id: <business-uuid>
-NO envíes x-tenant-id cuando actúes como la empresa principal.
+## Primeros Pasos (Getting Started)
 
-### Detalles del Sandbox
-- Usa cualquier RNC que comience con SBX (ej. SBX123456) — no se requiere certificado real.
-- Las secuencias son automáticas — no es necesario crearlas manualmente.
-- El campo environment en el cuerpo del documento DEBE ser TesteCF.
+La forma recomendada de interactuar con el SDK es a través del cliente unificado `EcfClient`. Este se encarga de realizar la autenticación inicial, refrescar el token antes de su vencimiento e inyectar las cabeceras requeridas de forma transparente.
 
-### Scopes disponibles
-business:read, business:create, business:update,
-members:read, members:invite, members:revoke,
-certificates:read, certificates:upload, certificates:update,
-documents:read, documents:create, documents:send, documents:receive, documents:update,
-approvals:read, approvals:commercial,
-sequences:read, sequences:create, sequences:update, sequences:cancel,
-business_info:read, certification:read, certification:write, reports:read
+```php
+<?php
+require_once __DIR__ . '/vendor/autoload.php';
 
+use PronesoftEcfSdk\EcfClient;
+use PronesoftEcfSdk\ApiException;
 
-For more information, please visit [https://pronesoft.com](https://pronesoft.com).
+// 1. Configurar credenciales (ejemplo con Sandbox)
+$host = 'https://api.ecf.sandbox.pronesoft.com/api/v1';
+$tenantId = 'SBX-TU-EMPRESA-UUID'; // Mapeado como client_id para el token
+$clientSecret = 'tu-client-secret-aqui';
 
-## Installation & Usage
+try {
+    // 2. Inicializar el cliente único (se autentica automáticamente en el constructor)
+    $client = new EcfClient($host, $tenantId, $clientSecret);
+    
+    // 3. Consumir cualquier servicio de negocio directamente
+    $documentsSentApi = $client->documentsSent();
+    $logs = $documentsSentApi->getSentDocumentLogs('uuid-del-documento');
+    
+    print_r($logs);
 
-### Requirements
+} catch (ApiException $e) {
+    echo "Error retornado por la API: " . $e->getResponseBody() . "\n";
+} catch (\Exception $e) {
+    echo "Error general: " . $e->getMessage() . "\n";
+}
+```
 
-PHP 8.1 and later.
+### Delegación multi-empresa (Sucursales)
+Para actuar en nombre de una empresa asociada (sucursal), puedes usar el método `forTenant` para obtener una instancia del cliente configurada con la cabecera `x-tenant-id`:
 
-### Composer
+```php
+$sucursalClient = $client->forTenant('uuid-de-la-sucursal');
+$logs = $sucursalClient->documentsSent()->getSentDocumentLogs('uuid-del-documento');
+```
 
-To install the bindings via [Composer](https://getcomposer.org/), add the following to `composer.json`:
+---
+
+## Instalación y Uso
+
+### Requisitos
+
+PHP 8.1 y superior.
+
+### Instalación vía Composer
+
+Para instalar las dependencias en tu proyecto utilizando [Composer](https://getcomposer.org/), agrega lo siguiente a tu archivo `composer.json`:
 
 ```json
 {
   "repositories": [
     {
       "type": "vcs",
-      "url": "https://github.com/GIT_USER_ID/GIT_REPO_ID.git"
+      "url": "https://github.com/ProneSoftSRL/pronesoft-ecf-sdk-php.git"
     }
   ],
   "require": {
-    "GIT_USER_ID/GIT_REPO_ID": "*@dev"
+    "pronesoft-rd/ecf-sdk-php": "dev-main"
   }
 }
 ```
 
-Then run `composer install`
+Luego ejecuta en tu terminal:
 
-### Manual Installation
-
-Download the files and include `autoload.php`:
-
-```php
-<?php
-require_once('/path/to/OpenAPIClient-php/vendor/autoload.php');
+```bash
+composer install
 ```
 
-## Getting Started
+### Instalación Manual
 
-Please follow the [installation procedure](#installation--usage) and then run the following:
+Descarga los archivos del repositorio e incluye el cargador automático:
 
 ```php
 <?php
-require_once(__DIR__ . '/vendor/autoload.php');
-
-
-
-// Configure OAuth2 access token for authorization: oauth2
-$config = PronesoftEcfSdk\Configuration::getDefaultConfiguration()->setAccessToken('YOUR_ACCESS_TOKEN');
-
-
-$apiInstance = new PronesoftEcfSdk\Api\AssociatedCompaniesApi(
-    // If you want use custom http client, pass your client which implements `GuzzleHttp\ClientInterface`.
-    // This is optional, `GuzzleHttp\Client` will be used as default.
-    new GuzzleHttp\Client(),
-    $config
-);
-$email = 'email_example'; // string
-$password = 'password_example'; // string
-$name = 'name_example'; // string
-$rnc = 'rnc_example'; // string
-$phone = 'phone_example'; // string
-$address = 'address_example'; // string
-$city = 'city_example'; // string
-$country = 'country_example'; // string
-$printer_type = new \PronesoftEcfSdk\Model\PrintFormat(); // \PronesoftEcfSdk\Model\PrintFormat
-$first_name = 'first_name_example'; // string
-$last_name = 'last_name_example'; // string
-$job_title = 'job_title_example'; // string
-$website = 'website_example'; // string
-$category = 'category_example'; // string
-$monthly_sales_range = 'monthly_sales_range_example'; // string
-$logo = '/path/to/file.txt'; // \SplFileObject
-
-try {
-    $result = $apiInstance->createAssociatedCompany($email, $password, $name, $rnc, $phone, $address, $city, $country, $printer_type, $first_name, $last_name, $job_title, $website, $category, $monthly_sales_range, $logo);
-    print_r($result);
-} catch (Exception $e) {
-    echo 'Exception when calling AssociatedCompaniesApi->createAssociatedCompany: ', $e->getMessage(), PHP_EOL;
-}
-
+require_once('/ruta/a/pronesoft-ecf-sdk-php/vendor/autoload.php');
 ```
 
 ## API Endpoints
