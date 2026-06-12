@@ -15,15 +15,16 @@ use PronesoftEcfSdk\ApiException;
 
 // 2. Configurar credenciales (ejemplo con Sandbox)
 $host = 'https://api.ecf.sandbox.pronesoft.com/api/v1';
-$tenantId = 'SBX-TU-EMPRESA-UUID'; // Se mapea como client_id para el token
+$clientId = 'SBX-TU-EMPRESA-UUID';
 $clientSecret = 'tu-client-secret-aqui';
+$tenantId = 'SBX-RNC-DE-LA-EMPRESA-ACTIVA'; // Identificador de la empresa activa (cabecera x-tenant-id)
 
 try {
     echo "Inicializando EcfClient y autenticando automáticamente...\n";
     
-    // Instanciar el wrapper.
+    // Instanciar el wrapper con el tenantId opcional (establece la empresa activa/sesión).
     // Esto realizará de forma automática la petición HTTP para obtener el primer token.
-    $client = new EcfClient($host, $tenantId, $clientSecret);
+    $client = new EcfClient($host, $clientId, $clientSecret, $tenantId);
     
     echo "¡Autenticación completada con éxito!\n\n";
 

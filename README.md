@@ -20,12 +20,13 @@ use PronesoftEcfSdk\ApiException;
 
 // 1. Configurar credenciales (ejemplo con Sandbox)
 $host = 'https://api.ecf.sandbox.pronesoft.com/api/v1';
-$tenantId = 'SBX-TU-EMPRESA-UUID'; // Mapeado como client_id para el token
+$clientId = 'SBX-TU-EMPRESA-UUID';
 $clientSecret = 'tu-client-secret-aqui';
+$tenantId = 'SBX-RNC-DE-LA-EMPRESA-ACTIVA'; // Opcional: ID de la empresa activa (inyecta x-tenant-id)
 
 try {
-    // 2. Inicializar el cliente único (se autentica automáticamente en el constructor)
-    $client = new EcfClient($host, $tenantId, $clientSecret);
+    // 2. Inicializar el cliente único (se autentica automáticamente y establece el tenant de sesión)
+    $client = new EcfClient($host, $clientId, $clientSecret, $tenantId);
     
     // 3. Consumir cualquier servicio de negocio directamente
     $documentsSentApi = $client->documentsSent();

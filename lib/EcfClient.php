@@ -33,12 +33,12 @@ use PronesoftEcfSdk\Model\OAuthTokenRequest;
 class EcfClient
 {
     private string $host;
-    private string $tenantId;
+    private string $clientId;
     private string $clientSecret;
     private ?string $accessToken = null;
     private int $expiresAt = 0;
     private int $refreshSkewSeconds;
-    private ?string $delegatedTenantId = null;
+    private ?string $tenantId = null;
 
     private Configuration $config;
     private ClientInterface $httpClient;
@@ -61,28 +61,31 @@ class EcfClient
      * Constructor de EcfClient.
      *
      * @param string $host URL base del API de eCF (ej. https://api.ecf.sandbox.pronesoft.com/api/v1).
-     * @param string $tenantId ID/RNC de la empresa (mapeado como client_id).
+     * @param string $clientId ID de cliente de la empresa (mapeado como client_id).
      * @param string $clientSecret Secreto de cliente de la empresa.
+     * @param string|null $tenantId ID de la empresa/sucursal activa (inyecta x-tenant-id si no es nulo).
      * @param int $refreshSkewSeconds Margen de seguridad en segundos antes de expirar para renovar el token (por defecto 300s).
      *
      * @throws \InvalidArgumentException Si faltan parámetros obligatorios.
      */
     public function __construct(
         string $host,
-        string $tenantId,
+        string $clientId,
         string $clientSecret,
+        ?string $tenantId = null,
         int $refreshSkewSeconds = 300
     ) {
         $this->host = rtrim($host, '/');
-        $this->tenantId = trim($tenantId);
+        $this->clientId = trim($clientId);
         $this->clientSecret = trim($clientSecret);
+        $this->tenantId = $tenantId !== null ? trim($tenantId) : null;
         $this->refreshSkewSeconds = $refreshSkewSeconds > 0 ? $refreshSkewSeconds : 300;
 
         if (empty($this->host)) {
             throw new \InvalidArgumentException('El host (base URL) es obligatorio.');
         }
-        if (empty($this->tenantId)) {
-            throw new \InvalidArgumentException('El tenantId (client_id) es obligatorio.');
+        if (empty($this->clientId)) {
+            throw new \InvalidArgumentException('El clientId es obligatorio.');
         }
         if (empty($this->clientSecret)) {
             throw new \InvalidArgumentException('El clientSecret es obligatorio.');
@@ -119,16 +122,16 @@ class EcfClient
      * Retorna una copia del cliente configurada para actuar en nombre de una empresa asociada (sucursal).
      * Inyectará la cabecera 'x-tenant-id' en cada petición.
      *
-     * @param string $tenantId UUID de la empresa asociada (sucursal).
+     * @param string|null $tenantId UUID de la empresa asociada (sucursal), o null para volver a la empresa principal.
      * @return self
      */
-    public function forTenant(string $tenantId): self
+    public function forTenant(?string $tenantId): self
     {
         $clone = clone $this;
-        $clone->delegatedTenantId = trim($tenantId);
+        $clone->tenantId = $tenantId !== null ? trim($tenantId) : null;
         
         // Re-inicializar el cliente HTTP para que las clausuras de los middlewares
-        // se vinculen a la nueva instancia clonada y lean su $delegatedTenantId.
+        // se vinculen a la nueva instancia clonada y lean su $tenantId.
         $clone->initializeHttpClient();
         $clone->initializeApis();
         
@@ -152,7 +155,7 @@ class EcfClient
 
         try {
             $tokenRequest = new OAuthTokenRequest([
-                'client_id' => $this->tenantId,
+                'client_id' => $this->clientId,
                 'client_secret' => $this->clientSecret,
             ]);
 
@@ -229,8 +232,8 @@ class EcfClient
             $token = $this->getValidToken(false);
             $request = $request->withHeader('Authorization', 'Bearer ' . $token);
 
-            if ($this->delegatedTenantId !== null) {
-                $request = $request->withHeader('x-tenant-id', $this->delegatedTenantId);
+            if ($this->tenantId !== null) {
+                $request = $request->withHeader('x-tenant-id', $this->tenantId);
             }
 
             return $request;
